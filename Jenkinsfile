@@ -80,7 +80,7 @@ pipeline {
 
     stage('Update Image Tag in GitOps') {
       steps {
-         checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[ credentialsId: 'git-ssh', url: 'git@github.com:RestaurantFoodOrdering/deployment-folder.git']])
+         checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[ credentialsId: 'GITHUB_PAT', url: 'https://github.com/RestaurantFoodOrdering/deployment-folder.git']])
         script {
        sh '''
           sed -i "s/image:.*/image: msdevcoder123\\/restaurant-service:${VERSION}/" aws/restaurant-manifest.yml
@@ -88,10 +88,15 @@ pipeline {
           sh 'git checkout main'
           sh 'git add .'
           sh 'git commit -m "Update image tag"'
-        sshagent(['git-ssh'])
-            {
-                  sh('git push')
-            }
+        withCredentials([usernamePassword(credentialsId: 'GITHUB_PAT',
+                       usernameVariable: 'GIT_USER',
+                       passwordVariable: 'GIT_TOKEN')]) {
+        sh '''
+          # ensure remote uses HTTPS with PAT for auth
+          git remote set-url origin https://${GIT_USER}:${GIT_TOKEN}@github.com/RestaurantFoodOrdering/deployment-folder.git
+          git push origin main
+        '''
+      }
         }
       }
     }
